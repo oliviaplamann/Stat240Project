@@ -1,4 +1,4 @@
-# # Project for STAT 240 (Data Science Modeling I) at UW-Madison
+# Project for STAT 240 (Data Science Modeling I) at UW-Madison
 ## Weather Analysis
 ### In Collaboration with Arun Pancholia and Minqi Yang
 ## Code
