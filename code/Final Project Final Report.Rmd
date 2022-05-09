@@ -1,0 +1,399 @@
+---
+title: "Final Project Final Report"
+subtitle: "Arun Pancholia, Mingqi Yan, and Olivia Plamann"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(lubridate)
+source("viridis.R")
+source("ggprob.R")
+source("beta-binomial.R")
+```
+
+
+```{r, include=FALSE}
+weather <- read_csv("weather-check.csv") %>%
+  rename(website_app = website) %>%
+  mutate(weather_check_num = case_when(
+    if_check == "Yes" ~ 1,
+    if_check == "No" ~ 0)) %>%
+  mutate(Region = na_if(Region, "-"),
+         method = na_if(method, "-"),
+         website_app = na_if(website_app, "-"),
+         checked_weather_on_watch = na_if(checked_weather_on_watch, "-"),
+         Age = na_if(Age, "-"),
+         Income = na_if(Income, "-"),
+         Gender = na_if(Gender, "-"),
+         Region = na_if(Region, "-"))
+
+weather_by_region <- weather %>%
+  group_by(Region) %>%
+  summarize(weather_check_num = sum(weather_check_num),
+            count_reg = n(),
+            check_by_region = weather_check_num / count_reg) %>%
+  filter(Region != "NA")
+
+
+weather_by_age <- weather %>%
+  group_by(Age) %>%
+  summarize(weather_check_num = sum(weather_check_num),
+            count_reg = n(),
+            check_by_age = weather_check_num / count_reg) %>%
+  filter(Age != "NA")
+
+method_weather <- weather %>%
+  group_by(method) %>%
+  summarize(method_sum = sum(weather_check_num)) %>%
+  drop_na(method)
+```
+
+### **Introduction:**
+
+Technology allows access to an abundance of information that could not have been available prior to an event.  Even as technology changes and becomes more advanced, the sources that provide this information follow suit.  One such example of this is the weather.  There are several technological outlets that serve to provide information and predictions about the weather forecast ahead of time.  This led us to wonder if people are making use of this technological form and if so who.  An analysis of these questions will prove that people indeed are checking the weather and of those people who are, there are statistical differences that define this group of people. We believe that the male gender group and the older age group populations check the weather more and the methods they use are technology-related.
+
+
+
+### **Background:**
+
+The weather data we use to analyze our aforementioned questions of interest was a survey conducted via SurveyMonkey Audience by Walt Hickey with the intent to answer two main questions: How do you check the weather? and Do you check a weather report every day?  There were 928 respondents from the United States to the survey, which was available from April 6 to April 10 of 2015.  This data collected from this survey is useful to show who is checking the weather, in what area they are from, and how.  These qualities are well measured by the gender, age groups, and method variables that are represented in the data set.  Therefore, we can claim that this data has strong validity for the questions we pose.  One aspect that may hinder the answers to the questions we pose is the fact that this data comes from a survey.  Thus, the conclusions we make may not be entirely representative of the entire population, resulting in some biases and inaccuracies in the conclusions  However, the FiveThirtyEight website is very well known for the authenticity of its surveys.  Therefore, we can confidently trust the data set we plan to use for our report.  Hickey was inspired to collect this data after reading an article^[https://www.wsj.com/articles/at-the-weather-channel-gloomy-skies-linger-1428276754] about the current financial difficulties The Weather Channel is facing.  Obtaining useful summaries from this data can result in certain advertisements being placed more in specific regions and directed toward explicit groups of people for weather-related services in order to maximize a profit.
+
+##### **Description of Variables:**
+(In all of the data, NA or missing values are represented by a "-", which is a hyphen symbol)
+
+  - The first variable present in the data is "ID" which corresponds to the     
+    identification number of the respondent.
+  - "if_check" is a variable that denotes the response to the survey question, 
+    "Do you typically check a daily weather report?"
+  - The "method" variable represents the method that respondent uses to check 
+    the weather.
+  - The next variable, "website" is the name of a website or an app provided 
+    from the respondent if the method from the prior question "A specific 
+    website or app" was selected.
+  - "checked_weather_on_watch" is a variable that signifies how likely the 
+    respondent is to check the weather on a smartwatch if they had one.
+  - The "Age" variable is the age of the respondent in a particular range: 
+    18-29, 30-44, 45-59, and 60+
+  - "Gender" is a variable that either has "Male" or "Female" options for 
+    gender.  We recognize that one's gender is not normally a binary 
+    characteristic and therefore may be excluding certain members from giving 
+    their identified gender as a response to this variable.
+  - The "Income" variable required respondents to choose a specific dollar 
+    range that all members of their household earned in the prior year.  There 
+    are certain dollar ranges and also "Prefer not to answer" responses.
+  - "Region" is the final variable that represents which region of the United 
+    States these respondents are from.  The nine regions that were included in 
+    this data are East North Central, East South Central, Middle Atlantic,
+    Mountain, New England, Pacific, South Atlantic, West North Central, and 
+    West South Central.  Below is an image that displays each region.
+    
+    
+    
+![   ](9567246_orig.jpg)
+    
+##### **Citation of Data**
+
+We obtained this data from GitHub^[https://github.com/fivethirtyeight/data/blob/master/weather-check/weather-check.csv] that was linked from an article on the FiveThirtyEight^[https://fivethirtyeight.com/] web page, which was written by Walt Hickey in April of 2015, entitled "Where People Go To Check the Weather"^[https://fivethirtyeight.com/features/weather-forecast-news-app-habits/]
+
+##### **Formal MLA Citation:**
+
+Hickey, Walt. "Where People Go To Check the Weather." FiveThirtyEight. https://fivethirtyeight.com/features/weather-forecast-news-app-habits/
+
+##### **Intention for Rest of Report:**
+
+For the rest of the report, we intend to provide graphical and numerical analysis in order to answer our overarching question of if people are checking the weather, and further, for those who are, what characteristics make up these people and what method are they using to check the weather?  We intend to pursue these questions by taking a look at specifically the age and gender variables provided in the data.  Our provided weather data is fitting because it has survey answers to the questions we pose.  That being said, we will apply our knowledge learned from this course in order to get a grasp on the answers to these questions so that The Weather Channel can direct its attention toward or away from these groups in hopes of relieving its financial burden.
+
+
+
+### **Analysis:**
+
+##### **Graphical and Numerical Summaries:**
+
+
+Our main question of interest was first to determine if people are checking the weather.  We have created proportions of people who are ("Proportion_Yes") versus proportions of people who are not ("Proportion_No") checking the weather from the survey results to answer this question.
+
+Proportion of Respondents Who are Checking the Weather versus Not Checking the Weather:
+```{r, echo = FALSE}
+weather %>%
+  summarize(count = n(), 
+            p_yes = sum(weather_check_num) / count,
+            p_no = 1 - p_yes) %>%
+  rename(Number_Responses = count,
+         Proportion_Yes = p_yes,
+         Proportion_No = p_no)
+```
+
+
+We can clearly see that from the data, the proportion of people who state they do check the weather every day is about .8, which is much higher than those who claim they do not check the weather report every day.
+
+
+```{r, echo=FALSE}
+ggplot(weather_by_age, aes(x = Age, y = check_by_age)) +
+  geom_col(fill = "slateblue2") +
+  ylab("Proportion of People") +
+  ggtitle("Proportion of People Who Check the Weather By Age")
+```
+
+We thought that one way to get a better sense of who was checking the weather was by comparing the proportion of people who check the weather in each age group.  We chose to represent this data as a bar graph of proportions from the survey for each age-group.  From this, we can see that older age groups seem to be checking the weather at a higher proportion than the younger age groups and that the proportion increases as the age group increases. 
+
+
+
+
+```{r, echo = FALSE}
+ggplot(method_weather, aes(x = method, y = method_sum)) +
+  geom_col(fill = "tan") +
+  ylab("Number of People") +
+  xlab("Method") +
+  ggtitle("Methods People are Using to Check the Weather") +
+  theme(axis.text.x = element_text(angle = 70, hjust = 1))
+```
+
+In order for companies like The Weather Channel to understand why they may be losing profit, it may be beneficial to see the methods people are using to check the weather.  We have created a separate bar graph to show the survey results selected from the question "How do you check the weather?"  Our initial claim was that methods incorporating technology are used more by people to check the weather, which is proven in this graph summary.  The Weather Channel method is the fourth most used method behind "The default weather app on your phone", "A specific website or app", and "Local TV News".
+
+
+
+
+```{r, echo = FALSE}
+weather %>%
+  group_by(Gender) %>%
+  drop_na(Gender) %>%
+  ggplot(aes(x = Gender, fill = if_check)) +
+  geom_bar(position = "stack") +
+  ggtitle("Checking the Weather by Gender") +
+  ylab("Number of People") +
+  scale_fill_discrete("Do You Check the Weather?")
+  
+```
+
+A final representation of the survey data we chose to display as a graph was the comparison between the two genders sampled, Male and Female.  We chose to represent the counts of this data as a stacked bar graph that compares how each gender answered Yes and No to the survey question of "Do you check the Weather?"  We can see that females were surveyed more than males and thus answered yes more than males.  However, it would be of interest for us to look at the proportion of males versus the proportion of females who answered yes to checking the weather.
+
+##### **Hypothesis Tests**
+
+Age-Group Difference Hypothesis Test:
+
+From our graphical display of age groups.  We saw that the older age groups had more people check the weather than the younger age groups.  This led us to wonder if the proportions of people who check the weather vary significantly from age group to age group.  That is to say, is there a universal proportion at which all people, regardless of age, check the weather, or do these proportions vary in each age group.
+
+Null: The proportion of people checking the weather are the same for each age group.
+
+$H_0$: $p_{18-29} = p_{30-44} = p_{45-59} = p_{60+}$
+
+Alternative: The proportion of people who check the weather is not the same for each age age group.
+
+$H_a$: not ($p_{18-29} = p_{30-44} = p_{45-59} = p_{60+}$)
+  
+Methods:
+We plan to use a likelihood ratio test to compare each age-group proportion of people who check the weather to the overall proportion of people who check the weather.
+
+
+Proportions that Check the Weather for Each Age Group:
+```{r, echo = FALSE, message = FALSE}
+age_groups <- weather %>%
+  group_by(Age) %>%
+  drop_na(Age) %>%
+  summarize(num_check = sum(weather_check_num),
+         total_num = n(),
+         phat = num_check / total_num)
+
+age_groups
+```
+
+We will compare the above proportions to the overall proportion of people who check the weather, which makes up the null hypothesis that there is a universal proportion of people who check the weather regardless of age group.  We will find the Log Ratio Test Statistic (lrt) for this.
+
+The log-likelihood under the alternative hypothesis is the sum of the log-likelihoods for each of the four different binomial probabilities, each with its own proportion estimate.
+
+Likelihood Ratio Test:
+```{r, echo = FALSE, message = FALSE}
+dat <- age_groups %>%
+  mutate(p_0 = sum(num_check) / sum(total_num)) %>%
+  mutate(log_L0 = dbinom(num_check, total_num, p_0, log=TRUE),
+         log_L1 = dbinom(num_check, total_num, phat, log=TRUE))
+
+lrt = dat %>%
+  summarize(log_L0 = sum(log_L0),
+            log_L1 = sum(log_L1),
+            lrt = 2*(log_L1 - log_L0),
+            R = exp(log_L0-log_L1))
+lrt
+```
+
+
+If the sample sizes are large enough, the sampling distribution of the Likelihood Ratio Test statistic has an approximate chi-square distribution with degrees of freedom equal to the difference in the number of free parameters between the two hypotheses.  The null hypothesis has one parameter to estimate, the universal proportion of people who check the weather. The alternative hypothesis has four different parameters to estimate, the proportion of people who check the weather for each age group.  Therefore, the number of degrees of freedom is four minus one, which is three.
+
+
+Chi-Square Graphical Representation of the Test Statistic:
+```{r, echo = FALSE}
+gchisq(3) +
+  geom_vline(xintercept = lrt$lrt, linetype = "dashed", color = "red") +
+  xlab("") +
+  theme_bw() +
+  ylab("Density") +
+  ggtitle("Chi-Square Representation of the Likelihood Test Statistic", subtitle = "Three Degrees of Freedom")
+```
+
+We can directly calculate our p-value from the chi-square distribution where the likelihood ratio test statistic is 25.
+
+P-Value:
+```{r, echo = FALSE}
+lrt %>%
+  mutate(p_value = 1 - pchisq(lrt,3)) %>%
+  pull(p_value)
+```
+
+
+
+Gender Difference Hypothesis Test:
+
+After taking a look at the differences displayed on our graph between males and females who answered yes to checking the weather, we were curious to know if there was a significant difference between the proportions of males and females who check the weather.  In order to get an answer for this question of interest, we plan to perform a two-sided hypothesis test from simulation.
+
+
+```{r, include = FALSE}
+gender <- weather %>%
+  drop_na(Gender)%>%
+  group_by(Gender)%>%
+  summarise(yes = sum(weather_check_num), count = n())%>%
+  mutate(p_yes = yes / count)
+```
+
+Summarized Gender Groups:
+```{r, echo = FALSE}
+gender
+```
+
+From our initial graph, it seemed as though females checked the weather more than males.  However, after computing direct proportions of each gender that check the weather, we found that males from the survey checked the weather a higher proportion than females.
+
+Because we found the proportion of males who check the weather to be greater than the proportion of females who check the weather from the survey, we plan to test the hypothesis that the proportion of males that check the weather is not equal to the proportion of females.
+
+
+Null: The proportion of people checking the weather of each gender is the same.
+
+
+$H_0$: $p_{males} = p_{females}$
+
+Alternative: The proportion of people males who check the weather is not equal to the proportion of females who check the weather.
+
+$H_a$: $p_{males} ≠ p_{females}$
+  
+Methods:
+We will use simulation to simulate the sampling distribution of the test statistic and determine the p-value based on the simulated values.  We simulate the data assuming that $p_{males} = p_{females}$.
+
+
+```{r, echo = FALSE}
+n_m <- weather %>%
+  filter(Gender == "Male") %>%
+  summarize(n = n()) %>%
+  pull(n)
+x_m <- weather %>%
+  filter(Gender == "Male") %>%
+  summarize(weather_check_num = sum(weather_check_num)) %>%
+  pull(weather_check_num)
+p_males <- x_m/n_m
+
+n_f <- weather %>%
+  filter(Gender == "Female") %>%
+  summarize(n = n()) %>%
+  pull(n)
+x_f <- weather %>%
+  filter(Gender == "Female") %>%
+  summarize(weather_check_num = sum(weather_check_num)) %>%
+  pull(weather_check_num)
+p_females <- x_f/n_f
+
+```
+
+
+Assuming the null hypothesis (the proportions of each gender who check the weather are the same) is true, we can combine both the male and female survey results together to get a combined proportion of all respondents who check the weather regardless of gender.
+
+Combined Proportion of Males and Females that Check the Weather:
+```{r, echo = FALSE}
+p_hat <- gender %>%
+  summarize(sum_y = sum(yes),
+            tot = sum(count),
+            p_hat = sum_y / tot) %>%
+  pull(p_hat)
+
+p_hat
+```
+
+In order to accurately test our hypothesis, we simulated two random samples, taking into account the proportion of people who check the weather for each gender group.  We then calculated the difference between those random samples.  The mean and standard deviation of this difference is displayed below.
+
+Mean and Standard Deviation:
+```{r, echo = FALSE}
+set.seed(22231)
+
+N <-  100000
+
+dat <- tibble(
+  x_m = rbinom(N, n_m, p_hat),
+  x_f = rbinom(N, n_f, p_hat),
+  p_m = x_m/n_m,
+  p_f = x_f/n_f,
+  diff = p_m - p_f)
+
+dat_sum <- dat %>% 
+  summarize(mean = mean(diff),
+            sd = sd(diff))
+
+dat_sum
+```
+
+We can see that the mean of these differences is very close to zero and that the standard deviation is about 0.02.  We can visualize this mean and standard deviation on the graph below.
+
+Here is a graphical representation of the difference in proportions between males and females.  This representation gives a visual to the area where the difference in proportions is equal to or more extreme than our test statistic, which is the difference in the proportion of males and females who check the weather every day from our summarized gender groups (0.8200514 - 0.7969639).  It is in this area that we will calculate our p-value for the hypothesis test.
+
+```{r, echo = FALSE}
+ggplot(dat, aes(x = diff)) +
+  geom_density(color = "black") +
+  geom_hline(yintercept = 0) +
+  geom_vline(xintercept = p_males - p_females, color = "red", linetype = "dashed") +
+  geom_norm_fill(mu = dat_sum$mean, sigma = dat_sum$sd, a=p_males-p_females, fill="tan", alpha = 0.5) +
+   geom_norm_fill(mu = dat_sum$mean, sigma = dat_sum$sd, b = -(p_males - p_females), fill="tan", alpha = 0.5) +
+  xlab("Difference") +
+  ylab("Density") +
+  ggtitle("Difference Between Gender Weather Check Proportions", subtitle = "Proportion Males - Proportion Females")
+```
+
+We can now use our simulated differences and compare them to the actual difference in proportions between males and females to get a direct p-value.  If the simulated difference is equal to or more extreme than the direct difference, that value is accounted for the in p-value, as denoted by the tan area under the density curve above.
+
+P-Value:
+```{r, echo = FALSE}
+p_value <- mean(abs(dat$diff) > p_males-p_females)
+p_value
+```
+
+
+### **Discussion:**
+
+##### **Interpreting of Results:**
+
+###### **Hypotheses Test Interpretation:**
+
+From our age-group comparison likelihood ratio hypothesis test, with a p-value of about 1.531775e-05, we conclude that there is strong evidence against the null hypothesis, which states that the proportion of people who check the weather is the same for every age group.  Thus, there is strong evidence that each age group does not check the weather the same proportion.
+
+From our gender comparison simulated hypothesis test, with a p-value of 0.38287, we conclude that there is weak evidence against the null hypothesis, which states that the proportion of people of each gender who check the weather is the same.  Thus, there is not strong evidence that these proportions are neither the same nor are they different.
+
+
+###### **Graphical/Numerical Interpretation:**
+
+From our numerical display of the proportion of people from the survey who check the weather, we can see that the proportion of people who answered yes to the question if they check the weather (0.8038793) is significantly higher than the proportion who answered no (0.1961207).  This directly answers our main question of are people checking the weather.
+
+From our graphical display of the proportion of people who check the weather by age, we can see that the age group 18-29 checks the weather the least and that the age group 60+ checks the weather the most from the proportions obtained from the surveyed data.
+
+From our graphical display of methods, we can see that the most common method used is the default weather app on your phone.  We can also see that the least commonly used method is a Newsletter.  This can show how weather-related information is more frequently sought after in more technological ways.  This graph also tells us that The Weather Channel is the fourth most used method to check the weather from this data.  This information may be of interest to The Weather Channel so they can brainstorm ways to have more people check the weather through their method rather than the other methods depicted.  This graphical display is interesting to relate to the age.  From the age summary, we found that the age groups that check the weather the most from the survey are the older age groups (45-59 and 60+).  This is interesting because we generally tend to thing of older populations as being more hesitant to using technology.  However, our graphical display of methods shows us that it is very common for the people from the survey to use technology related sources in order to check the weather.
+
+From our final graphical display of gender, we find that more females filled out the survey than males.  We also see that this correlates to more females checking the weather than males.  However, after we calculate proportions of each gender, we see that the proportion of females who check the weather (0.7969639) is less than the proportion of males who check the weather (0.8200514).
+
+###### **Potential Shortcomings:**
+
+The survey we obtained our data from only specified two gender options.  This leaves out members who identity with a different gender.  If the survey had more options, our analysis may better depict which genders actually check the weather.  Furthermore, because our data is coming from a survey, there may be potential shortcomings in our analyses because the sample is not necessarily representative of the population.
+
+###### **Further Questions:**
+
+Since we know that each age group does not check the weather at the same proportion, one further question we could ask could be which age group checks the weather most.  This information would be valuable for companies like The Weather Channel to directly target a certain age group for advertisements.
+
+We could also find a new data set that compares the amount of rain or other specific weather patterns within each region and see how this compares to our data set of how often people check the weather.  The Weather Channel could also use this information to direct advertisements or announcements to these regions and boost their financial status.
+
+###### **Summary of Primary Conclusions:**
+
+From our analysis, we found from the surveyed data that people are indeed checking the weather.  The people who are checking the weather tend to be of the older populations (45-50 and 60+) and that most people tend to use technological methods like an app on your phone or the television to check this information.  From our age group hypothesis test, we concluded that each age group does not check the weather the same proportion.  We also found that although females were surveyed more, the proportion of men who checked the weather was greater than that of females.  However, from our hypothesis test on the difference in gender, there is not strong evidence that these proportions are neither the same nor are they different.  In all, after extensive analysis on our surveyed data, we were able to get a strong idea that people are indeed checking the weather and who those people are.  This information may be of great use to a company like The Weather Channel who is struggling financially.  Being familiar with the summaries we have provided may allow The Weather Channel to direct advertisements via technology methods toward older populations of all genders in order to maximize profit and redeem the company's financial status.
